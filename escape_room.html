@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operación Nube Segura - M365 Escape Room</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .draggable { cursor: grab; user-select: none; }
+    .draggable:active { cursor: grabbing; }
+    .dropzone-active { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.1) !important; }
+    .context-menu { position: absolute; z-index: 50; display: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between">
+
+  <!-- HEADER -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+    <div class="flex items-center gap-3">
+      <i class="fa-solid fa-cloud-bolt text-blue-400 text-2xl"></i>
+      <div>
+        <h1 class="font-bold text-lg leading-none">Operación Nube Segura</h1>
+        <span class="text-xs text-blue-400 font-medium">M365 Gamified Assessment</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-6 text-sm">
+      <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700">
+        <i class="fa-solid fa-layer-group text-blue-400"></i>
+        <span>Nivel: <strong id="current-level-text">1/4</strong></span>
+      </div>
+      <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700">
+        <i class="fa-solid fa-clock text-amber-400"></i>
+        <span>Tiempo: <strong id="timer-display">00:00</strong></span>
+      </div>
+      <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700">
+        <i class="fa-solid fa-star text-yellow-400"></i>
+        <span>Puntos: <strong id="score-display">1000</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="max-w-6xl w-full mx-auto p-6 flex-grow flex flex-col justify-center">
+
+    <!-- BANNER DE MISIÓN -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 mb-6 flex items-start gap-3">
+      <i class="fa-solid fa-circle-info text-blue-400 text-xl mt-0.5"></i>
+      <div>
+        <h2 id="mission-title" class="font-bold text-blue-300">Nivel 1: Sincronización en OneDrive</h2>
+        <p id="mission-desc" class="text-sm text-slate-300 mt-1">
+          El disco de tu laptop está lleno. Arrastra los archivos a su contenedor correspondiente según su ícono de sincronización en OneDrive.
+        </p>
+      </div>
+    </div>
+
+    <!-- ESCENARIO PRINCIPAL -->
+    <div id="game-stage" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl relative min-h-[380px]">
+      
+      <!-- NIVEL 1: ONEDRIVE DRAG & DROP -->
+      <div id="level-1" class="level-container space-y-6">
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex justify-between">
+          <span>Archivos en Escritorio Local (Arrastra cada elemento a su lugar)</span>
+          <span class="text-slate-500"><i class="fa-solid fa-mouse-pointer mr-1"></i>Haz clic derecho para opciones M365</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="source-files">
+          <div draggable="true" id="file-1" data-target="nube" class="draggable bg-slate-800/90 hover:bg-slate-800 border border-slate-700 p-4 rounded-xl flex items-center justify-between transition-all">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-file-word text-blue-500 text-2xl"></i>
+              <div>
+                <p class="font-medium text-sm">Informe_Anual.docx</p>
+                <span class="text-xs text-slate-400">Sólo Nube</span>
+              </div>
+            </div>
+            <i class="fa-solid fa-cloud text-sky-400 text-lg"></i>
+          </div>
+
+          <div draggable="true" id="file-2" data-target="local" class="draggable bg-slate-800/90 hover:bg-slate-800 border border-slate-700 p-4 rounded-xl flex items-center justify-between transition-all">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-file-excel text-emerald-500 text-2xl"></i>
+              <div>
+                <p class="font-medium text-sm">Proyecto_Local.xlsx</p>
+                <span class="text-xs text-slate-400">En este equipo</span>
+              </div>
+            </div>
+            <i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+          </div>
+
+          <div draggable="true" id="file-3" data-target="sinc" class="draggable bg-slate-800/90 hover:bg-slate-800 border border-slate-700 p-4 rounded-xl flex items-center justify-between transition-all">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-file-zipper text-amber-500 text-2xl"></i>
+              <div>
+                <p class="font-medium text-sm">Respaldos_2026.zip</p>
+                <span class="text-xs text-slate-400">Sincronizando</span>
+              </div>
+            </div>
+            <i class="fa-solid fa-rotate text-amber-400 text-lg animate-spin"></i>
+          </div>
+        </div>
+
+        <hr class="border-slate-800 my-4">
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div data-zone="nube" class="dropzone bg-slate-950/60 border-2 border-dashed border-slate-800 rounded-xl p-4 min-h-[120px] flex flex-col justify-start gap-2 transition-all">
+            <span class="text-xs font-semibold text-sky-400 flex items-center gap-2">
+              <i class="fa-solid fa-cloud"></i> Contenedor: Sólo Nube (Libera espacio)
+            </span>
+          </div>
+
+          <div data-zone="local" class="dropzone bg-slate-950/60 border-2 border-dashed border-slate-800 rounded-xl p-4 min-h-[120px] flex flex-col justify-start gap-2 transition-all">
+            <span class="text-xs font-semibold text-emerald-400 flex items-center gap-2">
+              <i class="fa-solid fa-laptop"></i> Contenedor: En el Dispositivo
+            </span>
+          </div>
+
+          <div data-zone="sinc" class="dropzone bg-slate-950/60 border-2 border-dashed border-slate-800 rounded-xl p-4 min-h-[120px] flex flex-col justify-start gap-2 transition-all">
+            <span class="text-xs font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-arrows-rotate"></i> Contenedor: Sincronizando
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- NIVEL 2: SHAREPOINT VS ONEDRIVE -->
+      <div id="level-2" class="level-container space-y-6 hidden">
+        <h3 class="text-sm font-semibold text-slate-300">Selecciona el repositorio correcto para cada tipo de archivo:</h3>
+        <div class="space-y-4">
+          <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <p class="font-medium text-sm">1. Documento de borrador de uso exclusivo personal</p>
+              <span class="text-xs text-slate-400">¿Dónde debe guardarse inicialmente?</span>
+            </div>
+            <select id="q2_1" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg p-2.5 focus:border-blue-500 outline-none">
+              <option value="">Seleccionar opción...</option>
+              <option value="onedrive">OneDrive para la Empresa</option>
+              <option value="sharepoint">Sitio de Equipos SharePoint</option>
+            </select>
+          </div>
+
+          <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <p class="font-medium text-sm">2. Procedimientos de la empresa para consulta de todo el departamento</p>
+              <span class="text-xs text-slate-400">¿Dónde debe publicarse este contenido oficial?</span>
+            </div>
+            <select id="q2_2" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg p-2.5 focus:border-blue-500 outline-none">
+              <option value="">Seleccionar opción...</option>
+              <option value="onedrive">OneDrive para la Empresa</option>
+              <option value="sharepoint">Sitio de Equipos SharePoint</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- NIVEL 3: MICROSOFT TEAMS -->
+      <div id="level-3" class="level-container space-y-6 hidden">
+        <h3 class="text-sm font-semibold text-slate-300">Colaboración y gestión de archivos en Microsoft Teams:</h3>
+        <div class="space-y-4">
+          <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700 space-y-3">
+            <p class="font-medium text-sm">¿Dónde se almacenan físicamente los archivos compartidos dentro del chat del canal de un equipo de Teams?</p>
+            <div class="space-y-2 text-xs">
+              <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 cursor-pointer">
+                <input type="radio" name="q3" value="sharepoint" class="accent-blue-500">
+                <span>En la biblioteca del Sitio de SharePoint vinculado al equipo.</span>
+              </label>
+              <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 cursor-pointer">
+                <input type="radio" name="q3" value="onedrive" class="accent-blue-500">
+                <span>En el OneDrive personal de la persona que creó el equipo.</span>
+              </label>
+              <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 cursor-pointer">
+                <input type="radio" name="q3" value="local" class="accent-blue-500">
+                <span>En el disco duro del servidor de la computadora local.</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NIVEL 4: HISTORIAL DE VERSIONES -->
+      <div id="level-4" class="level-container space-y-6 hidden">
+        <h3 class="text-sm font-semibold text-slate-300">Recuperación de versiones anteriores en M365:</h3>
+        <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700 space-y-3">
+          <p class="font-medium text-sm">Un compañero de trabajo sobrescribió por error una tabla en un Excel guardado en la nube. ¿Cuál es el procedimiento más rápido para restaurarlo?</p>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 cursor-pointer">
+              <input type="radio" name="q4" value="v_history" class="accent-blue-500">
+              <span>Abrir el archivo, ir a Información > Historial de Versiones y restaurar la versión anterior.</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 cursor-pointer">
+              <input type="radio" name="q4" value="recycle" class="accent-blue-500">
+              <span>Buscar la Papelera de reciclaje de Windows y presionar Ctrl+Z.</span>
+            </label>
+            <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-800 cursor-pointer">
+              <input type="radio" name="q4" value="support" class="accent-blue-500">
+              <span>Crear un ticket con Soporte TI para que restauren un backup de la máquina.</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANTALLA FINAL: REPORTES -->
+      <div id="level-summary" class="hidden space-y-6 text-center py-4">
+        <i class="fa-solid fa-award text-yellow-400 text-6xl mb-2 animate-bounce"></i>
+        <h2 class="text-2xl font-bold">¡Evaluación de Competencias Completada!</h2>
+        <p class="text-slate-400 text-sm max-w-lg mx-auto">
+          Has completado con éxito todos los desafíos del ecosistema Microsoft 365.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto my-6">
+          <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+            <span class="text-xs text-slate-400 block">Puntaje Final</span>
+            <span id="final-score" class="text-2xl font-bold text-yellow-400">0</span>
+          </div>
+          <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+            <span class="text-xs text-slate-400 block">Tiempo Empleado</span>
+            <span id="final-time" class="text-2xl font-bold text-blue-400">00:00</span>
+          </div>
+          <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+            <span class="text-xs text-slate-400 block">Intentos Fallidos</span>
+            <span id="final-errors" class="text-2xl font-bold text-emerald-400">0</span>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-left max-w-2xl mx-auto">
+          <h3 class="text-sm font-bold text-blue-400 mb-2"><i class="fa-solid fa-chart-line mr-2"></i>Diagnóstico Teórico-Práctico:</h3>
+          <ul id="feedback-list" class="text-xs text-slate-300 space-y-2 list-disc pl-5">
+            <!-- Dinámico -->
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BARRA INFERIOR -->
+    <div id="action-bar" class="mt-4 flex flex-wrap justify-between items-center gap-4">
+      <button id="hint-btn" onclick="useHint()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 text-xs px-4 py-2 rounded-lg transition-all flex items-center gap-2">
+        <i class="fa-regular fa-lightbulb"></i> Solicitar Pista (-150 pts)
+      </button>
+      
+      <div id="hint-box" class="hidden text-xs text-amber-300 bg-amber-950/40 border border-amber-800/60 px-3 py-1.5 rounded-lg max-w-md">
+        <!-- Pista actual -->
+      </div>
+
+      <button id="next-btn" onclick="validateCurrentLevel()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs px-6 py-2.5 rounded-lg transition-all flex items-center gap-2 ml-auto">
+        <span>Validar y Avanzar</span>
+        <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+
+  </main>
+
+  <!-- MENU CONTEXTUAL MOCK -->
+  <div id="context-menu" class="context-menu bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs w-48 overflow-hidden">
+    <button onclick="contextAction('liberar')" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2 text-slate-200">
+      <i class="fa-solid fa-cloud text-blue-400"></i> Liberar espacio
+    </button>
+    <button onclick="contextAction('conservar')" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2 text-slate-200">
+      <i class="fa-solid fa-circle-check text-emerald-400"></i> Conservar en dispositivo
+    </button>
+    <button onclick="contextAction('compartir')" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2 text-slate-200">
+      <i class="fa-solid fa-share-nodes text-purple-400"></i> Compartir enlace
+    </button>
+  </div>
+
+  <script>
+    let score = 1000;
+    let secondsElapsed = 0;
+    let errorCount = 0;
+    let hintsUsed = 0;
+    let currentLevel = 1;
+    let timerInterval;
+
+    // TEMPORIZADOR
+    timerInterval = setInterval(() => {
+      secondsElapsed++;
+      const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+      const secs = String(secondsElapsed % 60).padStart(2, '0');
+      document.getElementById('timer-display').innerText = `${mins}:${secs}`;
+    }, 1000);
+
+    // CONFIGURACIÓN DRAG AND DROP
+    const draggables = document.querySelectorAll('.draggable');
+    const dropzones = document.querySelectorAll('.dropzone');
+
+    draggables.forEach(draggable => {
+      draggable.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', draggable.id);
+        draggable.classList.add('opacity-50');
+      });
+
+      draggable.addEventListener('dragend', () => {
+        draggable.classList.remove('opacity-50');
+      });
+
+      draggable.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const menu = document.getElementById('context-menu');
+        menu.style.display = 'block';
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+      });
+    });
+
+    dropzones.forEach(zone => {
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('dropzone-active');
+      });
+
+      zone.addEventListener('dragleave', () => {
+        zone.classList.remove('dropzone-active');
+      });
+
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dropzone-active');
+        const id = e.dataTransfer.getData('text/plain');
+        const element = document.getElementById(id);
+        if (element) {
+          zone.appendChild(element);
+        }
+      });
+    });
+
+    window.addEventListener('click', () => {
+      document.getElementById('context-menu').style.display = 'none';
+    });
+
+    function contextAction(action) {
+      alert(`Acción M365 ejecutada: [${action.toUpperCase()}]. Esto cambiaría el comportamiento del archivo en el sistema real.`);
+    }
+
+    // PISTAS POR NIVEL
+    function useHint() {
+      if (score >= 150) {
+        score -= 150;
+        hintsUsed++;
+        document.getElementById('score-display').innerText = score;
+        const hintBox = document.getElementById('hint-box');
+        hintBox.classList.remove('hidden');
+        
+        const hints = {
+          1: "Pista: El ícono de Nube Azul significa 'Sólo Nube'. El Check Verde es 'Guardado Local' y las flechas giran cuando se está Sincronizando.",
+          2: "Pista: OneDrive se recomienda para documentos personales o borradores. SharePoint es para documentos compartidos de equipo o institucionales.",
+          3: "Pista: Los archivos compartidos dentro de un equipo o canal en Teams terminan guardándose en el sitio de SharePoint del equipo.",
+          4: "Pista: Microsoft 365 guarda automáticamente el Historial de Versiones dentro de la sección 'Información' del documento."
+        };
+        hintBox.innerText = hints[currentLevel];
+      } else {
+        alert("No tienes suficientes puntos para solicitar una pista.");
+      }
+    }
+
+    // CONTROL DE NIVELES Y VALIDACIONES
+    function validateCurrentLevel() {
+      document.getElementById('hint-box').classList.add('hidden');
+
+      if (currentLevel === 1) {
+        const zoneNube = document.querySelector('[data-zone="nube"]').contains(document.getElementById('file-1'));
+        const zoneLocal = document.querySelector('[data-zone="local"]').contains(document.getElementById('file-2'));
+        const zoneSinc = document.querySelector('[data-zone="sinc"]').contains(document.getElementById('file-3'));
+
+        if (zoneNube && zoneLocal && zoneSinc) {
+          advanceToLevel(2, "Nivel 2: Gobernanza SharePoint vs. OneDrive", "Determina el mejor repositorio según las políticas de colaboración corporativas.");
+        } else {
+          handleError("Aún hay archivos desubicados. Verifica los íconos de cada archivo.");
+        }
+      } 
+      else if (currentLevel === 2) {
+        const q1 = document.getElementById('q2_1').value;
+        const q2 = document.getElementById('q2_2').value;
+
+        if (q1 === 'onedrive' && q2 === 'sharepoint') {
+          advanceToLevel(3, "Nivel 3: Gestión de Archivos en Microsoft Teams", "Aprende a ubicar la información compartida durante el trabajo colaborativo.");
+        } else {
+          handleError("Selecciones incorrectas. Recuerda: borrador personal = OneDrive; publicado oficial = SharePoint.");
+        }
+      } 
+      else if (currentLevel === 3) {
+        const selected = document.querySelector('input[name="q3"]:checked');
+        if (selected && selected.value === 'sharepoint') {
+          advanceToLevel(4, "Nivel 4: Historial de Versiones y Recuperación", "Resuelve incidentes de sobrescritura utilizando las herramientas de M365.");
+        } else {
+          handleError("Respuesta incorrecta. Piensa en qué plataforma en la nube respalda a los canales de Teams.");
+        }
+      } 
+      else if (currentLevel === 4) {
+        const selected = document.querySelector('input[name="q4"]:checked');
+        if (selected && selected.value === 'v_history') {
+          finishAssessment();
+        } else {
+          handleError("Respuesta incorrecta. El historial de versiones es la función directa de M365 para recuperar estados pasados.");
+        }
+      }
+    }
+
+    function advanceToLevel(nextLevel, title, desc) {
+      document.getElementById(`level-${currentLevel}`).classList.add('hidden');
+      currentLevel = nextLevel;
+      document.getElementById(`level-${currentLevel}`).classList.remove('hidden');
+      
+      document.getElementById('current-level-text').innerText = `${currentLevel}/4`;
+      document.getElementById('mission-title').innerText = title;
+      document.getElementById('mission-desc').innerText = desc;
+    }
+
+    function handleError(message) {
+      errorCount++;
+      score = Math.max(0, score - 100);
+      document.getElementById('score-display').innerText = score;
+      alert(message);
+    }
+
+    function finishAssessment() {
+      clearInterval(timerInterval);
+      document.getElementById(`level-${currentLevel}`).classList.add('hidden');
+      document.getElementById('action-bar').classList.add('hidden');
+      document.getElementById('level-summary').classList.remove('hidden');
+
+      document.getElementById('final-score').innerText = score;
+      document.getElementById('final-time').innerText = document.getElementById('timer-display').innerText;
+      document.getElementById('final-errors').innerText = errorCount;
+
+      const feedback = document.getElementById('feedback-list');
+      feedback.innerHTML = `
+        <li><strong>Sincronización en OneDrive:</strong> ${errorCount === 0 ? 'Excelente comprensión de almacenamiento en la nube y local.' : 'Revisar la gestión de espacio de disco con OneDrive.'}</li>
+        <li><strong>Arquitectura SharePoint / Teams:</strong> Identificas de manera correcta dónde residen los datos según el canal de colaboración.</li>
+        <li><strong>Resiliencia de Datos:</strong> Sabes cómo hacer uso del Historial de Versiones para recuperarte de errores sin depender del soporte técnico.</li>
+      `;
+    }
+  </script>
+</body>
+</html>
