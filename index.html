@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape Room M365 - Simulador Interactivo Avanzado</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Tone.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- jsPDF para exportación de Manual PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        m365: {
+                            blue: '#0078D4',
+                            darkBlue: '#005A9E',
+                            sharepoint: '#03787C',
+                            onedrive: '#0078D4',
+                            outlook: '#0072C6',
+                            bgDark: '#0F172A',
+                            panelDark: '#1E293B'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Segoe UI', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        .fluent-glass { background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.5); border-radius: 4px; }
+        .mock-ui { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        
+        /* Animaciones para paneles de interfaz desplegables */
+        .slide-in-right { animation: slideRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .dropdown-bounce { animation: dropDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes slideRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes dropDown {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- HEADER -->
+    <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-m365-blue to-teal-400 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                    <i class="fa-solid fa-laptop-code"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide text-white flex items-center gap-2">
+                        M365 Interactive Escape Room
+                        <span id="module-badge" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">Nivel Básico</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Simulador Realista de Interfaz: SharePoint, OneDrive & Outlook</p>
+                </div>
+            </div>
+
+            <!-- Dashboard de Estado -->
+            <div class="flex items-center gap-4 sm:gap-6 bg-slate-950/60 px-4 py-1.5 rounded-xl border border-slate-800/80">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-sky-400 text-sm"></i>
+                    <div>
+                        <span class="block text-[10px] text-slate-400 uppercase">Escenario</span>
+                        <span id="game-indicator" class="font-semibold text-xs text-slate-200">1 / 12</span>
+                    </div>
+                </div>
+                <div class="h-6 w-px bg-slate-800"></div>
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-clock text-amber-400 text-sm animate-pulse"></i>
+                    <div>
+                        <span class="block text-[10px] text-slate-400 uppercase">Tiempo</span>
+                        <span id="timer-display" class="font-mono font-bold text-sm text-amber-300">25:00</span>
+                    </div>
+                </div>
+                <div class="h-6 w-px bg-slate-800"></div>
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-star text-emerald-400 text-sm"></i>
+                    <div>
+                        <span class="block text-[10px] text-slate-400 uppercase">Puntos</span>
+                        <span id="score-display" class="font-mono font-bold text-sm text-emerald-400">1200</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de Control -->
+            <div class="flex items-center gap-2">
+                <button id="btn-sound" onclick="toggleAudio()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Sonido">
+                    <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+                </button>
+                <button onclick="resetGame()" class="p-2 rounded-lg bg-slate-800 hover:bg-rose-900/40 hover:text-rose-400 text-slate-400 transition" title="Reiniciar">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <main class="flex-grow max-w-5xl w-full mx-auto p-4 md:p-6 flex flex-col justify-center">
+
+        <!-- INICIO DE LA MISIÓN -->
+        <section id="screen-intro" class="fluent-glass rounded-2xl p-6 md:p-10 text-center space-y-6 border border-slate-700">
+            <div class="inline-flex items-center justify-center p-4 bg-blue-500/20 rounded-2xl text-blue-400 border border-blue-500/30 text-5xl">
+                <i class="fa-solid fa-hand-pointer"></i>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-white">Simulador de Interfaz Microsoft 365</h2>
+            <p class="text-slate-300 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
+                Resuelve 12 casos reales de oficina con dificultad progresiva: Básico (1-4), Intermedio (5-8) y Avanzado (9-12). Elige la mejor práctica, aprende del feedback inmediato y obtén la clave de paso.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left my-6">
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-teal-500/30">
+                    <div class="flex items-center gap-2 text-teal-400 font-bold mb-1">
+                        <i class="fa-solid fa-building"></i> 1. SharePoint Online
+                    </div>
+                    <p class="text-xs text-slate-400">Bibliotecas de equipo, metadatos, sincronización local, permisos heredados vs. únicos y conflictos sin conexión.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-sky-500/30">
+                    <div class="flex items-center gap-2 text-sky-400 font-bold mb-1">
+                        <i class="fa-solid fa-cloud"></i> 2. OneDrive for Business
+                    </div>
+                    <p class="text-xs text-slate-400">Archivos personales vs. de equipo, historial de versiones y qué hacer con el contenido cuando alguien deja la empresa.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-blue-500/30">
+                    <div class="flex items-center gap-2 text-blue-400 font-bold mb-1">
+                        <i class="fa-solid fa-calendar-days"></i> 3. Outlook Calendar
+                    </div>
+                    <p class="text-xs text-slate-400">Asistente para programación, Scheduling Poll, reserva de salas y delegación de calendarios.</p>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="px-8 py-4 bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold text-lg rounded-xl shadow-lg transition transform hover:-translate-y-0.5">
+                <i class="fa-solid fa-play mr-2"></i> Iniciar Misión Interactiva
+            </button>
+        </section>
+
+        <!-- PANEL DE JUEGOS DINÁMICO CON INTERFAZ SIMULADA Y MULTI-STEP -->
+        <section id="game-panel" class="hidden space-y-6">
+            <div class="bg-slate-900/90 rounded-2xl p-4 md:p-6 border border-slate-800 shadow-2xl">
+                
+                <!-- Encabezado del Juego Actual -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
+                    <div>
+                        <span id="game-category-label" class="text-xs font-bold uppercase tracking-wider text-teal-400">Ítem 1: SharePoint Online</span>
+                        <h2 id="game-title" class="text-xl md:text-2xl font-bold text-white flex items-center gap-2 mt-1">
+                            Título del Juego
+                        </h2>
+                    </div>
+                    <button onclick="showHint()" class="self-start md:self-auto text-xs px-3 py-2 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-lightbulb"></i> Pista (-50 pts)
+                    </button>
+                </div>
+
+                <!-- Descripción e Instrucciones -->
+                <div class="p-3 bg-slate-950/80 border border-slate-800 rounded-xl mb-4 text-xs md:text-sm text-slate-300">
+                    <p id="game-instructions" class="flex items-start gap-2">
+                        <i class="fa-solid fa-route text-sky-400 mt-0.5"></i>
+                        <span>Instrucciones del minijuego...</span>
+                    </p>
+                </div>
+
+                <!-- Arena interactiva (Simulación M365 UI Avanzada) -->
+                <div id="interactive-arena" class="bg-slate-950 p-2 md:p-4 rounded-xl border border-slate-800 min-h-[360px] relative overflow-hidden flex flex-col justify-center">
+                    <!-- Componente Visual Renderizado Dinámicamente -->
+                </div>
+
+                <!-- Formulario de Desbloqueo -->
+                <div class="mt-6 pt-4 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <p class="text-xs text-slate-400">Elige la respuesta correcta para revelar la clave de paso.</p>
+                    <div class="flex items-center gap-2 bg-slate-900 p-2 rounded-xl border border-slate-700">
+                        <input type="number" id="code-input" placeholder="Clave" class="w-28 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-center font-mono font-bold text-white focus:outline-none focus:border-blue-500 text-sm">
+                        <button onclick="validateCode()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition text-xs flex items-center gap-1">
+                            <i class="fa-solid fa-lock-open"></i> Validar Clave
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- PANTALLA FINAL / DESCARGA DE MANUAL PDF -->
+        <section id="screen-success" class="hidden text-center space-y-6 max-w-3xl mx-auto">
+            <div class="fluent-glass p-8 rounded-2xl border border-emerald-500/40 shadow-2xl relative overflow-hidden">
+                <div class="inline-flex items-center justify-center p-4 bg-emerald-500/20 rounded-2xl text-emerald-400 border border-emerald-500/30 text-5xl mb-4">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <h2 class="text-3xl md:text-4xl font-extrabold text-white">¡Entrenamiento Realizado con Éxito!</h2>
+                <p class="text-slate-300 text-sm md:text-base max-w-lg mx-auto leading-relaxed">
+                    Has demostrado criterio para resolver casos reales de SharePoint, OneDrive y Outlook.
+                </p>
+
+                <div id="certificate-card" class="bg-slate-900 border-2 border-emerald-500/60 p-6 rounded-xl text-center space-y-4 my-6 shadow-xl">
+                    <div class="text-xs uppercase tracking-widest text-emerald-400 font-semibold">Acreditación Práctica M365</div>
+                    <h3 class="text-xl md:text-2xl font-bold text-white tracking-wide">Usuario Experto en Microsoft 365</h3>
+                    <p class="text-xs text-slate-300">SharePoint Online &bull; OneDrive para la Empresa &bull; Outlook Calendar</p>
+                    
+                    <div class="pt-4 flex justify-around items-center border-t border-slate-800 text-xs">
+                        <div>
+                            <span class="block text-slate-400 text-[10px]">PUNTUACIÓN OBTENIDA</span>
+                            <span id="final-score" class="font-bold text-emerald-400 text-lg">1200 pts</span>
+                        </div>
+                        <div>
+                            <span class="block text-slate-400 text-[10px]">TIEMPO RESTANTE</span>
+                            <span id="final-time" class="font-bold text-amber-300 text-lg">20:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-4 justify-center">
+                    <button onclick="downloadManualPDF()" class="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf text-lg"></i> Descargar Guía Práctica PDF (Manual M365)
+                    </button>
+                    <button onclick="resetGame()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-right"></i> Reiniciar Juego
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-950 border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+        <p>Plataforma de Capacitación Práctica Microsoft 365 &copy; 2026</p>
+    </footer>
+
+    <!-- MODAL GENERAL -->
+    <div id="game-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-sm w-full shadow-2xl text-center space-y-4">
+            <div id="modal-icon" class="text-4xl text-amber-400">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3 id="modal-title" class="font-bold text-lg text-white">Mensaje</h3>
+            <p id="modal-body" class="text-xs text-slate-300 leading-relaxed"></p>
+            <button onclick="closeModal()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-xs transition">
+                Entendido
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ESTADO GLOBAL
+        let currentGameIndex = 0;
+        let score = 1200;
+        let timerSeconds = 25 * 60;
+        let timerInterval = null;
+        let soundEnabled = true;
+
+        // ESTRUCTURA DE LOS 12 RETOS (CURVA DE DIFICULTAD: BÁSICO 1-4 · INTERMEDIO 5-8 · AVANZADO 9-12)
+        const THEMES = {
+            teal: { hdr: 'bg-teal-800', res: 'bg-teal-950/80 border-teal-500 text-teal-200', item: 'text-teal-400', icon: 'fa-network-wired', brand: 'SharePoint | Portal Corporativo' },
+            sky:  { hdr: 'bg-sky-800',  res: 'bg-sky-950/80 border-sky-500 text-sky-200',     item: 'text-sky-400',  icon: 'fa-cloud',         brand: 'OneDrive para la Empresa' },
+            blue: { hdr: 'bg-blue-800', res: 'bg-blue-950/80 border-blue-500 text-blue-200',  item: 'text-blue-400', icon: 'fa-calendar-days', brand: 'Outlook | Calendario' }
+        };
+
+        const QUESTIONS = [
+            // ---------- NIVEL BÁSICO ----------
+            {
+                level: 'Básico', tema: 'SharePoint / OneDrive', theme: 'teal', code: '4192',
+                mecanica: 'Selección del Camino Correcto',
+                titulo: '1. ¿Dónde debe vivir el informe del equipo?',
+                escenario: `El equipo de Operaciones (5 personas) prepara el informe mensual de indisponibilidades. Marcela lo empezó en su OneDrive y va enviando enlaces a los demás.`,
+                pregunta: `¿Dónde debe vivir este documento para que todo el equipo lo edite y no dependa de una sola persona?`,
+                opciones: [
+                    `En el OneDrive de Marcela, compartiendo un enlace de edición con los otros 4.`,
+                    `En la biblioteca "Documentos" del sitio de SharePoint del equipo.`,
+                    `En el Escritorio de Windows de Marcela, enviándolo por correo para que cada uno lo devuelva editado.`,
+                    `En el OneDrive de la jefatura, porque es la responsable final del informe.`
+                ],
+                correcta: 1,
+                feedback: `OneDrive es tu espacio personal (borradores, apuntes). SharePoint es el espacio del equipo: el contenido pertenece al área, no a una persona. Además ofrece permisos por grupo, coedición simultánea e historial de versiones. Regla práctica: si más de una persona necesita el archivo de forma continua, va en SharePoint.`,
+                hint: `Pregúntate quién es el dueño del documento: ¿una persona o el equipo? Busca el espacio pensado para el trabajo colaborativo continuo.`,
+                guideTitle: `SharePoint vs. OneDrive: dónde guardar`,
+                guideStep: `1. OneDrive = espacio personal (borradores y archivos individuales).\n2. SharePoint = espacio del equipo: permisos por grupo, coedición e historial de versiones.\n3. Regla: si más de una persona lo necesita de forma continua, guárdalo en la biblioteca 'Documentos' del sitio.`
+            },
+            {
+                level: 'Básico', tema: 'OneDrive vs SharePoint', theme: 'sky', code: '8301',
+                mecanica: 'Selección de interfaz (identificar íconos)',
+                titulo: '2. Nube Azul ☁️ vs. Edificio 🏢 en el Explorador',
+                escenario: `En el Explorador de Windows, Luis ve dos carpetas: una con Nube Azul ☁️ ("OneDrive – Empresa") y otra con Edificio 🏢 ("Empresa – Operaciones"). Guardó el acta de la reunión del equipo en la primera y nadie más la puede ver.`,
+                visual: `<div class="bg-slate-950 border border-slate-800 rounded-lg p-2 space-y-1">
+                            <p class="text-[10px] text-slate-500 uppercase font-bold">Explorador de archivos</p>
+                            <div class="flex items-center gap-2 p-2 rounded bg-slate-800"><i class="fa-solid fa-cloud text-sky-400"></i><span>OneDrive – Empresa</span></div>
+                            <div class="flex items-center gap-2 p-2 rounded bg-slate-800"><i class="fa-solid fa-building text-teal-400"></i><span>Empresa – Operaciones</span></div>
+                        </div>`,
+                pregunta: `¿Qué representa cada ícono y dónde debió guardar el acta?`,
+                opciones: [
+                    `Son equivalentes; solo cambia el color, así que da lo mismo dónde guardar.`,
+                    `Nube Azul = biblioteca compartida del equipo; Edificio = espacio personal. Debió guardarla en la Nube.`,
+                    `Nube Azul = tu OneDrive personal (privado por defecto); Edificio = biblioteca de SharePoint sincronizada (del equipo). Debió guardarla bajo el Edificio.`,
+                    `Edificio = carpeta local sin respaldo; Nube Azul = copia en la nube de esa misma carpeta.`
+                ],
+                correcta: 2,
+                feedback: `Antes de guardar, mira el nombre y el ícono de la carpeta: la Nube Azul es tu OneDrive personal y el Edificio suele indicar una biblioteca de SharePoint sincronizada. El aspecto puede variar según la versión, pero el nombre de la carpeta siempre te orienta. Guardar contenido de equipo en tu OneDrive lo deja invisible para los demás y en riesgo si cambias de cargo.`,
+                hint: `Fíjate en el nombre de cada carpeta: una lleva "OneDrive" y la otra el nombre del área. El Edificio suele representar un espacio compartido.`,
+                guideTitle: `Íconos en el Explorador: Nube Azul vs. Edificio`,
+                guideStep: `1. Nube Azul = tu OneDrive personal (privado por defecto).\n2. Edificio = biblioteca de SharePoint sincronizada (del equipo).\n3. Verifica el nombre de la carpeta antes de guardar; el ícono puede variar según la versión.`
+            },
+            {
+                level: 'Básico', tema: 'Calendario Outlook', theme: 'blue', code: '5620',
+                mecanica: 'Detección de error (Asistente para programación)',
+                titulo: '3. Cómo evitar la cadena de 20 correos',
+                escenario: `Patricia debe reunir a 6 personas de 3 áreas. Ya van 20 correos de "¿te sirve el martes a las 10?" y sigue sin fecha.`,
+                pregunta: `¿Qué herramienta de Outlook debió usar desde el primer momento?`,
+                opciones: [
+                    `Nuevo evento → pestaña Asistente para programación: agregar a los asistentes y elegir un horario donde todos figuren libres.`,
+                    `Enviar la invitación a las 10:00 y reprogramar según quién la rechace.`,
+                    `Abrir un chat de Teams y pedir a cada uno su disponibilidad.`,
+                    `Llamar por teléfono a cada persona para cuadrar horarios.`
+                ],
+                correcta: 0,
+                feedback: `El Asistente para programación cruza los calendarios y muestra quién está libre u ocupado (sin revelar el contenido de sus reuniones) y propone horarios comunes. Reemplaza toda la cadena de correos por una sola invitación. Límite: con personas externas a la organización puede que no veas su disponibilidad.`,
+                hint: `Busca una función del evento que muestre quién está libre u ocupado antes de enviar la invitación.`,
+                guideTitle: `Outlook: Asistente para programación`,
+                guideStep: `1. Crea un Nuevo evento y agrega a los asistentes.\n2. Abre la pestaña 'Asistente para programación'.\n3. Elige un horario donde todos figuren libres (no ves el detalle de sus reuniones).\n4. Envía una sola invitación en lugar de una cadena de correos.`
+            },
+            {
+                level: 'Básico', tema: 'SharePoint', theme: 'teal', code: '9014',
+                mecanica: 'Clasificar (de carpetas a Metadatos)',
+                titulo: '4. Carpetas infinitas vs. Metadatos',
+                escenario: `La biblioteca de contratos tiene carpetas como "Contratos_2024_Aprobados_Final" y "Contratos_2024_Pendientes_v2". Encontrar el contrato de un proveedor específico toma 10 minutos.`,
+                visual: `<div class="bg-slate-950 border border-slate-800 rounded-lg p-2 space-y-1">
+                            <div class="flex items-center gap-2 p-2 rounded bg-slate-800"><i class="fa-solid fa-folder text-amber-400"></i><span>Contratos_2024_Aprobados_Final</span></div>
+                            <div class="flex items-center gap-2 p-2 rounded bg-slate-800"><i class="fa-solid fa-folder text-amber-400"></i><span>Contratos_2024_Pendientes_v2</span></div>
+                        </div>`,
+                pregunta: `¿Cuál es la mejor práctica de SharePoint para organizar y encontrar documentos?`,
+                opciones: [
+                    `Agregar más niveles de subcarpetas: año / estado / proveedor.`,
+                    `Renombrar cada archivo con proveedor, estado y fecha separados por guiones bajos.`,
+                    `Mantener un Excel aparte con el índice de contratos y sus enlaces.`,
+                    `Agregar columnas de Metadatos (Proveedor, Estado, Año) y usar vistas y filtros.`
+                ],
+                correcta: 3,
+                feedback: `Una carpeta solo puede describir una ubicación; los Metadatos describen un documento de múltiples formas a la vez (proveedor, estado, año). Con "+ Agregar columna" de tipo Elección, el usuario filtra, agrupa y ordena, y guardas vistas como "Contratos pendientes". Además evitas rutas muy largas que luego complican la sincronización.`,
+                hint: `Piensa en cómo filtrar por Proveedor y Estado al mismo tiempo: las carpetas no lo permiten, las columnas sí.`,
+                guideTitle: `SharePoint: Metadatos en lugar de carpetas`,
+                guideStep: `1. En la biblioteca, haz clic en '+ Agregar columna'.\n2. Elige el tipo 'Elección' (por ejemplo Proveedor, Estado, Año).\n3. Filtra, agrupa y guarda vistas según esas columnas.\n4. Evita rutas largas y nombres como '_Final_v2'.`
+            },
+            // ---------- NIVEL INTERMEDIO ----------
+            {
+                level: 'Intermedio', tema: 'SharePoint', theme: 'teal', code: '1074',
+                mecanica: 'Toma de decisión (estado de sincronización)',
+                titulo: '5. Sincronizar sin llenar el disco',
+                escenario: `Jorge sincronizó toda la biblioteca "Proyectos" (80 GB) a su notebook y el disco quedó lleno. Mañana va a una subestación sin cobertura y solo necesita 3 carpetas.`,
+                visual: `<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                            <div class="p-2 bg-slate-950 border border-slate-800 rounded flex items-center gap-2"><i class="fa-solid fa-cloud text-sky-400"></i> Solo en línea</div>
+                            <div class="p-2 bg-slate-950 border border-slate-800 rounded flex items-center gap-2"><i class="fa-regular fa-circle-check text-emerald-400"></i> Disponible localmente</div>
+                            <div class="p-2 bg-slate-950 border border-slate-800 rounded flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-500"></i> Siempre en este dispositivo</div>
+                        </div>`,
+                pregunta: `¿Qué configuración debe aplicar antes de salir?`,
+                opciones: [
+                    `Descargar desde el navegador un ZIP completo de la biblioteca.`,
+                    `Con Archivos a petición activo, marcar las 3 carpetas como "Mantener siempre en este dispositivo" y liberar espacio del resto.`,
+                    `Borrar desde el Explorador los archivos que no necesita para liberar disco.`,
+                    `Desinstalar OneDrive y volver a sincronizar cuando tenga internet.`
+                ],
+                correcta: 1,
+                feedback: `Con Archivos a petición (Archivos a demanda), cada archivo tiene un estado: Nube Azul ☁️ (solo en línea), Check Verde (descargado al abrirlo) y Círculo Verde relleno (siempre disponible sin conexión). "Liberar espacio" quita la copia local sin tocar SharePoint. Trampa de la opción C: borrar en una carpeta sincronizada elimina el archivo de la biblioteca para todo el equipo. En terreno, marca y confirma la descarga antes de perder señal.`,
+                hint: `Necesitas dos cosas: poco espacio en disco y 3 carpetas disponibles sin conexión. Recuerda: borrar NO es liberar espacio.`,
+                guideTitle: `Archivos a petición: sincronizar y liberar espacio`,
+                guideStep: `1. Abre la biblioteca y presiona 'Sincronizar'.\n2. Con Archivos a petición, usa 'Mantener siempre en este dispositivo' solo en lo que necesites sin conexión.\n3. Usa 'Liberar espacio' para devolver el resto a la nube.\n4. Nunca borres para liberar espacio: eliminas el archivo para todo el equipo.`
+            },
+            {
+                level: 'Intermedio', tema: 'SharePoint', theme: 'teal', code: '7329',
+                mecanica: 'Detección de error + corrección',
+                titulo: '6. Acceso mínimo para un consultor externo',
+                escenario: `Un consultor externo debe revisar solo la carpeta "Informes Regulatorios". Andrés, por rapidez, lo agregó al grupo "Miembros del sitio".`,
+                pregunta: `¿Cuál es la forma correcta de dar este acceso?`,
+                opciones: [
+                    `Está bien: los Miembros solo pueden editar documentos, no representa riesgo.`,
+                    `Compartir el sitio completo como Visitante para que solo pueda leer.`,
+                    `Enviarle los archivos por correo como adjuntos y olvidar el asunto.`,
+                    `Compartir solo esa carpeta con el consultor como persona específica, con el permiso mínimo necesario (ver o editar) y revocarlo al terminar el encargo.`
+                ],
+                correcta: 3,
+                feedback: `Aplica el principio de mínimo privilegio. Agregar a alguien a "Miembros del sitio" le da acceso a todo el sitio (y, si está conectado a un equipo de Teams, también a sus contenidos). Compartir únicamente la carpeta limita el alcance. Esa opción crea permisos únicos: úsala para casos puntuales y, para equipos estables, gestiona el acceso con grupos. Los adjuntos por correo pierden todo control de versiones y permisos.`,
+                hint: `Aplica el mínimo privilegio: ¿acceso a todo el sitio o solo a lo que necesita ver?`,
+                guideTitle: `SharePoint: Acceso mínimo a una carpeta`,
+                guideStep: `1. Clic derecho en la carpeta y elige 'Compartir'.\n2. Selecciona 'Personas específicas' y el permiso mínimo necesario.\n3. No agregues a externos al grupo 'Miembros del sitio'.\n4. Revoca el acceso cuando termine el encargo.`
+            },
+            {
+                level: 'Intermedio', tema: 'OneDrive', theme: 'sky', code: '3815',
+                mecanica: 'Selección del Camino Correcto (Historial de versiones)',
+                titulo: '7. Rescatar un archivo sobrescrito',
+                escenario: `Carolina abre "Plan_Mantenimiento.xlsx" y descubre que un colega sobrescribió varias hojas con datos erróneos hace dos horas.`,
+                pregunta: `¿Cuál es la ruta más segura para recuperar la información correcta?`,
+                opciones: [
+                    `Tres puntos (…) del archivo → Historial de versiones → abrir la versión anterior al error y restaurarla.`,
+                    `Eliminar el archivo y pedir a TI que restaure el respaldo de anoche.`,
+                    `Pedirle al colega que rehaga todo de memoria y vuelva a subirlo.`,
+                    `Crear "Plan_Mantenimiento_NUEVO.xlsx" y empezar desde cero.`
+                ],
+                correcta: 0,
+                feedback: `OneDrive y SharePoint guardan versiones automáticamente, con autor y hora de cada cambio. Puedes abrir una versión anterior para verificarla antes de restaurarla; al restaurar, esa versión pasa a ser la actual y el historial se conserva. Duplicar el archivo o eliminarlo genera confusión (varios "originales") y pierde trazabilidad.`,
+                hint: `Paso 1: tres puntos (…) del archivo. Paso 2: Historial de versiones. Restaurar no borra el historial.`,
+                guideTitle: `OneDrive / SharePoint: Historial de versiones`,
+                guideStep: `1. Haz clic en los tres puntos (...) del archivo.\n2. Selecciona 'Historial de versiones'.\n3. Abre la versión previa al error para comprobarla.\n4. Usa 'Restaurar': pasa a ser la versión actual y el historial se conserva.`
+            },
+            {
+                level: 'Intermedio', tema: 'Calendario Outlook', theme: 'blue', code: '6491',
+                mecanica: 'Elección de estrategia (Scheduling Poll + Buscador de salas)',
+                titulo: '8. Scheduling Poll y reserva de sala',
+                escenario: `Hay que organizar un taller de 8 personas de 4 áreas, sin fecha definida, y se necesita una sala con proyector.`,
+                pregunta: `¿Cuál es el flujo más eficiente para fijar horario y asegurar la sala?`,
+                opciones: [
+                    `Enviar tres invitaciones en fechas distintas y cancelar las que sobren.`,
+                    `Pedir por correo que todos respondan su disponibilidad y luego reservar la sala por teléfono.`,
+                    `Crear un Scheduling Poll con 3 o 4 opciones; con el horario ganador, programar la reunión y agregar la sala como recurso desde el Buscador de salas.`,
+                    `Elegir el horario de la persona más ocupada y escribir el nombre de la sala en el cuerpo del mensaje.`
+                ],
+                correcta: 2,
+                feedback: `El Scheduling Poll deja que los asistentes voten entre opciones y muestra qué horario reúne más disponibilidad, sin cadenas de correos. La sala se reserva solo si la agregas como recurso o ubicación desde el Buscador de salas: escribir su nombre como texto no la bloquea y provoca dobles reservas. Varias invitaciones tentativas ensucian los calendarios de todos.`,
+                hint: `Primero se decide el horario con votos y luego se reserva la sala como recurso, no como texto.`,
+                guideTitle: `Outlook: Scheduling Poll y reserva de sala`,
+                guideStep: `1. Crea un Scheduling Poll con 3 o 4 opciones de horario.\n2. Con el horario ganador, programa la reunión.\n3. Agrega la sala como recurso desde el Buscador de salas (no la escribas como texto).\n4. Así la sala queda reservada junto con la invitación.`
+            },
+            // ---------- NIVEL AVANZADO ----------
+            {
+                level: 'Avanzado', tema: 'SharePoint', theme: 'teal', code: '2548',
+                mecanica: 'Detección de error (conflicto de sincronización)',
+                titulo: '9. Conflicto de sincronización sin conexión',
+                escenario: `Dos analistas editaron "Informe_Regulatorio.docx" en una biblioteca sincronizada; uno estaba sin conexión. Al reconectar aparecen el archivo original y otro llamado "Informe_Regulatorio-LAPTOP-RH.docx", con un aviso de conflicto.`,
+                visual: `<div class="bg-slate-950 border border-slate-800 rounded-lg p-2 space-y-1">
+                            <div class="flex items-center justify-between gap-2 p-2 rounded bg-slate-800"><span><i class="fa-regular fa-file-word text-blue-400 mr-2"></i>Informe_Regulatorio.docx</span></div>
+                            <div class="flex items-center justify-between gap-2 p-2 rounded bg-slate-800"><span><i class="fa-regular fa-file-word text-blue-400 mr-2"></i>Informe_Regulatorio-LAPTOP-RH.docx</span><span class="text-amber-300 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Conflicto</span></div>
+                        </div>`,
+                pregunta: `¿Cómo se resuelve sin perder información?`,
+                opciones: [
+                    `Eliminar la copia con nombre de equipo: la del nombre original es "la buena".`,
+                    `Reemplazar el original con la copia offline: lo más reciente siempre manda.`,
+                    `Pausar la sincronización y reinstalar OneDrive para que el sistema decida.`,
+                    `Abrir ambos, compararlos (Word: Revisar → Comparar) y consolidar en un único archivo; luego eliminar la copia de conflicto y revisar el Historial de versiones.`
+                ],
+                correcta: 3,
+                feedback: `El conflicto aparece cuando hay dos cambios divergentes sobre la misma base. OneDrive conserva ambas copias justamente para no perder contenido: la decisión es humana. Prevención: antes de ir offline, abre la última versión; cuando hay conexión, edita directo desde la biblioteca para aprovechar la coedición simultánea, y avisa al equipo si trabajarás sin conexión.`,
+                hint: `OneDrive conserva ambas copias para no perder contenido. ¿Quién decide qué cambios se quedan?`,
+                guideTitle: `SharePoint: Resolver conflictos de sincronización`,
+                guideStep: `1. Abre ambos archivos (original y copia de conflicto).\n2. Compara (en Word: Revisar > Comparar) y consolida en un único archivo.\n3. Elimina la copia de conflicto y revisa el Historial de versiones.\n4. Prevención: abre la última versión antes de ir sin conexión y prefiere la coedición.`
+            },
+            {
+                level: 'Avanzado', tema: 'SharePoint', theme: 'teal', code: '9163',
+                mecanica: 'Toma de decisión de gobierno (permisos heredados vs. únicos)',
+                titulo: '10. ¿Por qué sigue viendo la carpeta? Permisos únicos',
+                escenario: `Ricardo fue quitado del grupo "Miembros del sitio" de Finanzas, pero sigue abriendo la carpeta "Presupuesto 2027". El propietario asegura que ya revisó el grupo.`,
+                pregunta: `¿Cuál es la causa más probable y la acción correcta?`,
+                opciones: [
+                    `Es caché del navegador: pedirle que borre cookies y vuelva a entrar.`,
+                    `La carpeta tiene permisos únicos y Ricardo fue agregado directamente (o por un vínculo); revisar "Administrar acceso" de la carpeta, quitarlo y evaluar restaurar la herencia.`,
+                    `SharePoint tarda 30 días en reflejar cambios de grupos.`,
+                    `Eliminar la carpeta y recrearla con el mismo nombre.`
+                ],
+                correcta: 1,
+                feedback: `Por defecto los permisos se heredan: sitio → biblioteca → carpeta → archivo. Al romper la herencia, la carpeta pasa a tener su propia lista ("Tiene permisos únicos") que ya no sigue los cambios del sitio, y quitar a alguien de un grupo no revoca accesos directos ni vínculos compartidos. Buenas prácticas: dar acceso por grupos, limitar los permisos únicos a lo excepcional y auditar periódicamente quién tiene acceso a qué.`,
+                hint: `Si quitar del grupo no bastó, el acceso viene de otro lado: la carpeta podría tener su propia lista de permisos.`,
+                guideTitle: `SharePoint: Permisos heredados vs. únicos`,
+                guideStep: `1. Por defecto los permisos se heredan: sitio, biblioteca, carpeta y archivo.\n2. Al romper la herencia, la carpeta queda con 'permisos únicos' y ya no sigue al sitio.\n3. Revisa 'Administrar acceso' y los vínculos compartidos de la carpeta.\n4. Da acceso por grupos, limita los permisos únicos y audita periódicamente.`
+            },
+            {
+                level: 'Avanzado', tema: 'Calendario Outlook', theme: 'blue', code: '4721',
+                mecanica: 'Toma de decisión de gobierno (delegación de calendario)',
+                titulo: '11. Delegar la agenda sin compartir contraseñas',
+                escenario: `La gerenta Claudia quiere que su asistente Tomás gestione su agenda. Hoy Tomás usa la contraseña de ella. Su calendario incluye reuniones de directorio confidenciales y citas personales.`,
+                pregunta: `¿Cuál es la configuración correcta y segura?`,
+                opciones: [
+                    `Mantener la contraseña compartida y cambiarla cada mes.`,
+                    `Compartir el calendario con "ver todos los detalles" y que Tomás copie las invitaciones a su propio calendario para responderlas.`,
+                    `Agregar a Tomás como delegado con permiso de editor, sin marcar que vea elementos privados, y marcar como Privadas las citas personales y confidenciales.`,
+                    `Crear una regla que reenvíe todos los correos de Claudia a Tomás.`
+                ],
+                correcta: 2,
+                feedback: `Un delegado actúa en nombre del titular (acepta y envía invitaciones) y queda registrado que es él quien actúa, sin compartir credenciales. Compartir contraseñas rompe la trazabilidad y puede saltarse la autenticación multifactor. Las citas marcadas como Privadas ocultan sus detalles, y el permiso "el delegado puede ver mis elementos privados" debe mantenerse desactivado salvo necesidad real.`,
+                hint: `Un delegado actúa en nombre del titular sin conocer su contraseña. Piensa también en qué hacer con lo confidencial.`,
+                guideTitle: `Outlook: Delegar el calendario`,
+                guideStep: `1. Ve a Configuración > Calendario > Delegados (o Compartir y permisos).\n2. Agrega al delegado con permiso de editor; nunca compartas tu contraseña.\n3. Marca como Privadas las citas confidenciales o personales.\n4. Mantén desactivado que el delegado vea los elementos privados.`
+            },
+            {
+                level: 'Avanzado', tema: 'OneDrive / Gobierno de la información', theme: 'sky', code: '8052',
+                mecanica: 'Toma de decisión de gobierno (desvinculación)',
+                titulo: '12. Desvinculación: archivos atrapados en un OneDrive',
+                escenario: `Un colaborador renunció. Su jefe descubre que las planillas críticas de control regulatorio estaban solo en su OneDrive personal, y la cuenta está por eliminarse.`,
+                pregunta: `¿Qué se debe hacer ahora y qué práctica evita que se repita?`,
+                opciones: [
+                    `Pedir a TI/administrador de M365 acceso al OneDrive del colaborador dentro del plazo de retención, mover los archivos al sitio de SharePoint del equipo y establecer que lo compartido se guarda siempre en SharePoint.`,
+                    `Esperar: al eliminarse la cuenta, OneDrive migra los archivos automáticamente al sitio del equipo.`,
+                    `Pedirle al ex colaborador que envíe las planillas desde su correo personal.`,
+                    `Recrear las planillas desde cero con lo que recuerde el equipo.`
+                ],
+                correcta: 0,
+                feedback: `Al eliminar un usuario, su OneDrive se retiene durante un período configurable (por defecto, 30 días) y el jefe directo puede recibir acceso. Pasado ese plazo, se borra de forma definitiva: no hay migración automática. Enviar archivos corporativos a un correo personal es una fuga de información. La solución de fondo es el proceso de salida (checklist de offboarding) y dejar los documentos de trabajo en SharePoint, donde pertenecen al área.`,
+                hint: `Primero rescata lo que está en riesgo (hay un plazo de retención); después corrige la causa de fondo.`,
+                guideTitle: `OneDrive: Desvinculación y gobierno de la información`,
+                guideStep: `1. Solicita a TI acceso al OneDrive del usuario saliente dentro del plazo de retención (por defecto 30 días).\n2. Mueve el contenido al sitio de SharePoint del equipo.\n3. Nunca pidas enviar archivos corporativos a correos personales.\n4. Establece que lo compartido vive siempre en SharePoint e incluye esto en el checklist de salida.`
+            }
+        ];
+
+        // Adaptador: mantiene la estructura 'games' usada por el resto del simulador
+        const games = QUESTIONS.map((q, i) => ({
+            item: `Nivel ${q.level} · ${q.tema}`,
+            itemClass: THEMES[q.theme].item,
+            badge: `Nivel ${q.level}`,
+            title: q.titulo,
+            hint: q.hint,
+            code: q.code,
+            instructions: `Reto «${q.mecanica}»: lee el caso, elige la mejor alternativa y revela la clave de paso.`,
+            guideTitle: q.guideTitle,
+            guideStep: q.guideStep,
+            render: () => renderQuestion(q, i)
+        }));
+
+        function renderQuestion(q, i) {
+            const t = THEMES[q.theme];
+            const letters = ['A', 'B', 'C', 'D'];
+            const opts = q.opciones.map((o, k) => `
+                <button id="q${i}-opt${k}" onclick="selectAnswer(${i}, ${k})" class="w-full text-left p-3 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-start gap-3 transition">
+                    <span class="shrink-0 w-6 h-6 rounded-full bg-slate-950 border border-slate-600 flex items-center justify-center font-bold text-[11px] text-slate-300">${letters[k]}</span>
+                    <span class="leading-relaxed">${o}</span>
+                </button>`).join('');
+            return `
+                <div class="mock-ui bg-slate-900 border border-slate-700 rounded-lg overflow-hidden text-slate-200">
+                    <div class="${t.hdr} text-white px-4 py-2 flex items-center justify-between text-xs font-semibold">
+                        <span class="flex items-center gap-2"><i class="fa-solid ${t.icon}"></i> ${t.brand}</span>
+                        <span>Nivel ${q.level}</span>
+                    </div>
+                    <div class="p-4 space-y-3 text-xs">
+                        <div>
+                            <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Escenario real</p>
+                            <p class="text-slate-300 leading-relaxed">${q.escenario}</p>
+                        </div>
+                        ${q.visual || ''}
+                        <p class="text-white font-bold text-sm leading-snug">${q.pregunta}</p>
+                        <div class="space-y-2">${opts}</div>
+                    </div>
+                </div>
+                <div id="res-q${i}" class="hidden mt-3 p-3 ${t.res} border rounded-lg text-xs leading-relaxed">
+                    <p class="font-bold text-white mb-1"><i class="fa-solid fa-circle-check mr-1"></i> ¡Respuesta correcta!</p>
+                    <p>${q.feedback}</p>
+                    <p class="mt-2">Código de acceso: <strong class="text-white font-mono text-sm">${q.code}</strong></p>
+                </div>
+            `;
+        }
+
+        function selectAnswer(i, k) {
+            const q = QUESTIONS[i];
+            const btn = document.getElementById(`q${i}-opt${k}`);
+            if (!btn || btn.disabled) return;
+            if (k === q.correcta) {
+                q.opciones.forEach((_, j) => {
+                    const b = document.getElementById(`q${i}-opt${j}`);
+                    if (!b) return;
+                    b.disabled = true;
+                    if (j === q.correcta) {
+                        b.className = 'w-full text-left p-3 rounded-lg border border-emerald-500 bg-emerald-950/60 text-emerald-100 flex items-start gap-3';
+                    } else {
+                        b.className = 'w-full text-left p-3 rounded-lg border border-slate-800 bg-slate-900 text-slate-500 flex items-start gap-3 opacity-60';
+                    }
+                });
+                stepSuccess(`q${i}`);
+                const res = document.getElementById(`res-q${i}`);
+                if (res && res.scrollIntoView) res.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                btn.disabled = true;
+                btn.className = 'w-full text-left p-3 rounded-lg border border-rose-600 bg-rose-950/40 text-rose-200 flex items-start gap-3 opacity-70 line-through';
+                wrongAnswer();
+            }
+        }
+
+        function wrongAnswer() {
+            playSfx('error');
+            updateScore(-25);
+            showModal('Esa es una trampa frecuente', 'Esa alternativa refleja un error común en la oficina y no es la mejor práctica de Microsoft 365. Vuelve a leer el escenario e inténtalo con otra opción.');
+        }
+
+        // MÉTODOS Y CONTROLADORES DE INTERFAZ
+        function startGame() {
+            playSfx('click');
+            document.getElementById('screen-intro').classList.add('hidden');
+            document.getElementById('game-panel').classList.remove('hidden');
+            currentGameIndex = 0;
+            loadGame(currentGameIndex);
+            startTimer();
+        }
+
+        function loadGame(index) {
+            const g = games[index];
+            document.getElementById('game-category-label').innerText = g.item;
+            document.getElementById('game-category-label').className = `text-xs font-bold uppercase tracking-wider ${g.itemClass}`;
+            document.getElementById('module-badge').innerText = g.badge;
+            document.getElementById('game-title').innerText = g.title;
+            document.getElementById('game-instructions').innerHTML = `<i class="fa-solid fa-route text-sky-400 mt-0.5"></i> <span>${g.instructions}</span>`;
+            document.getElementById('interactive-arena').innerHTML = g.render();
+            document.getElementById('game-indicator').innerText = `${index + 1} / 12`;
+            document.getElementById('code-input').value = '';
+        }
+
+        // FUNCIONES DE INTERACCIÓN INTERACTIVA
+        function toggleSubmenu(id) {
+            playSfx('click');
+            const menu = document.getElementById(id);
+            if (menu) menu.classList.toggle('hidden');
+        }
+
+        function openModalStep(id) {
+            playSfx('click');
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeModalStep(id) {
+            playSfx('click');
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function toggleTeamsSwitchStep() {
+            const btn = document.getElementById('teams-toggle');
+            playSfx('success');
+            btn.className = 'px-3 py-1.5 bg-emerald-600 text-white font-bold rounded text-[11px]';
+            btn.innerText = 'ACTIVADO';
+            stepSuccess('ol1');
+        }
+
+        function stepSuccess(prefix) {
+            playSfx('success');
+            const resElem = document.getElementById(`res-${prefix}`);
+            if (resElem) resElem.classList.remove('hidden');
+        }
+
+        function setTempResult(type) {
+            playSfx('error');
+            updateScore(-25);
+            showModal('Atención de Navegación', 'Esa opción o menú no corresponde al flujo indicado para este objetivo. Revisa las instrucciones e inténtalo de nuevo.');
+        }
+
+        function validateCode() {
+            const inputVal = document.getElementById('code-input').value.trim();
+            const currentCode = games[currentGameIndex].code;
+
+            if (inputVal === currentCode) {
+                playSfx('success');
+                updateScore(100);
+
+                if (currentGameIndex < games.length - 1) {
+                    showModal('¡Paso Desbloqueado!', 'Clave correcta. Avanzas al siguiente escenario interactivo.');
+                    currentGameIndex++;
+                    loadGame(currentGameIndex);
+                } else {
+                    finishGame();
+                }
+            } else {
+                playSfx('error');
+                updateScore(-50);
+                showModal('Clave Incorrecta', 'El código no coincide. Asegúrate de completar el flujo de interacción en la interfaz simulada para revelar la clave.');
+            }
+        }
+
+        function showHint() {
+            playSfx('click');
+            updateScore(-50);
+            showModal(`Pista - Escenario ${currentGameIndex + 1}`, games[currentGameIndex].hint);
+        }
+
+        // GENERACIÓN DEL MANUAL PDF POST-CAPACITACIÓN
+        function downloadManualPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Encabezado del documento PDF
+            doc.setFillColor(0, 120, 212);
+            doc.rect(0, 0, 210, 28, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text("GUÍA PRÁCTICA Y MANUAL DE BUENAS PRÁCTICAS M365", 14, 18);
+
+            doc.setTextColor(40, 40, 40);
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text("Documento oficial de referencia rápida para el trabajo cotidiano en Microsoft 365.", 14, 36);
+            doc.text("Generado tras completar con éxito los 12 desafíos interactivos del Escape Room.", 14, 42);
+
+            let yPos = 52;
+
+            games.forEach((g, idx) => {
+                const lines = doc.splitTextToSize(g.guideStep, 178);
+                const needed = 8 + (lines.length * 5) + 6;
+                if (yPos + needed > 280) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.setFillColor(240, 244, 248);
+                doc.rect(14, yPos - 4, 182, 8, 'F');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(0, 90, 158);
+                doc.text(`${idx + 1}. ${g.guideTitle}`, 16, yPos);
+
+                yPos += 8;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(60, 60, 60);
+                doc.text(lines, 18, yPos);
+
+                yPos += (lines.length * 5) + 6;
+            });
+
+            // Pie de página
+            doc.setFontSize(8);
+            doc.setTextColor(120, 120, 120);
+            doc.text("Capacitación Interactiva M365 - Manual de Consulta Rápida 2026", 14, 288);
+
+            doc.save("Manual_Buenas_Practicas_M365.pdf");
+        }
+
+        // SISTEMA DE AUDIO (Tone.js)
+        function playSfx(type) {
+            if (!soundEnabled) return;
+            try {
+                const synth = new Tone.Synth().toDestination();
+                if (type === 'success') {
+                    synth.triggerAttackRelease("C5", "8n");
+                    setTimeout(() => synth.triggerAttackRelease("G5", "8n"), 100);
+                } else if (type === 'error') {
+                    synth.triggerAttackRelease("F2", "8n");
+                } else if (type === 'click') {
+                    synth.triggerAttackRelease("E4", "16n");
+                }
+            } catch (e) { }
+        }
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-icon').className = soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-rose-400';
+        }
+
+        // TEMPORIZADOR Y SCORE
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (timerSeconds > 0) {
+                    timerSeconds--;
+                    updateTimerDisplay();
+                } else {
+                    clearInterval(timerInterval);
+                    showModal('Tiempo Expirado', 'Se ha agotado el tiempo del entrenamiento.');
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerSeconds / 60);
+            const secs = timerSeconds % 60;
+            document.getElementById('timer-display').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateScore(delta) {
+            score = Math.max(0, score + delta);
+            document.getElementById('score-display').innerText = score;
+        }
+
+        function finishGame() {
+            clearInterval(timerInterval);
+            document.getElementById('game-panel').classList.add('hidden');
+            document.getElementById('screen-success').classList.remove('hidden');
+            document.getElementById('final-score').innerText = `${score} pts`;
+            document.getElementById('final-time').innerText = document.getElementById('timer-display').innerText;
+
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        }
+
+        function resetGame() {
+            playSfx('click');
+            clearInterval(timerInterval);
+            timerSeconds = 25 * 60;
+            score = 1200;
+            updateTimerDisplay();
+            updateScore(0);
+            document.getElementById('screen-success').classList.add('hidden');
+            document.getElementById('game-panel').classList.add('hidden');
+            document.getElementById('screen-intro').classList.remove('hidden');
+        }
+
+        function showModal(title, text) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerText = text;
+            document.getElementById('game-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            playSfx('click');
+            document.getElementById('game-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
